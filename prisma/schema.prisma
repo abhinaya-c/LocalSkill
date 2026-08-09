@@ -1,0 +1,189 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+}
+
+enum BookingStatus {
+  REQUESTED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum VerificationTier {
+  UNVERIFIED
+  BASIC
+  VERIFIED
+}
+
+enum PricingModel {
+  HOURLY
+  FIXED
+}
+
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+  phone        String?       @unique
+  passwordHash String
+  role         UserRole      @default(CUSTOMER)
+  avatarUrl    String?
+  address      String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  providerProfile  ProviderProfile?
+  bookingsRequested Booking[]       @relation("CustomerBookings")
+  reviewsWritten   Review[]        @relation("CustomerReviews")
+  notifications    Notification[]
+  messagesSent     Message[]       @relation("SentMessages")
+  messagesReceived Message[]       @relation("ReceivedMessages")
+  auditLogs        AuditLog[]
+}
+
+model ProviderProfile {
+  id               String           @id @default(uuid())
+  userId           String           @unique
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio              String?
+  skills           String[]
+  contactInfo      String?
+  verificationTier VerificationTier @default(UNVERIFIED)
+  verificationDocs String[]
+  portfolio        String[]
+  latitude         Float?
+  longitude        Float?
+  averageRating    Float            @default(0.0)
+  reviewCount      Int              @default(0)
+
+  listings         ServiceListing[]
+  slots            AppointmentSlot[]
+  bookingsReceived Booking[]        @relation("ProviderBookings")
+  reviewsReceived  Review[]         @relation("ProviderReviews")
+
+  @@index([latitude, longitude])
+}
+
+model ServiceListing {
+  id            String       @id @default(uuid())
+  providerId    String
+  provider      ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  title         String
+  category      String
+  description   String
+  pricingModel  PricingModel
+  price         Float
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  bookings      Booking[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+model AppointmentSlot {
+  id         String          @id @default(uuid())
+  providerId String
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  startTime  DateTime
+  endTime    DateTime
+  isBooked   Boolean         @default(false)
+
+  bookings   Booking[]
+
+  @@index([providerId, startTime])
+}
+
+model Booking {
+  id         String        @id @default(uuid())
+  customerId String
+  customer   User          @relation("CustomerBookings", fields: [customerId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   ProviderProfile @relation("ProviderBookings", fields: [providerId], references: [id], onDelete: Cascade)
+  serviceId  String
+  service    ServiceListing @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  slotId     String
+  slot       AppointmentSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  status     BookingStatus @default(REQUESTED)
+  notes      String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  review     Review?
+  messages   Message[]
+
+  @@index([status])
+  @@index([customerId])
+  @@index([providerId])
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  bookingId  String?
+  booking    Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  content    String
+  createdAt  DateTime @default(now())
+
+  @@index([senderId, receiverId])
+  @@index([bookingId])
+}
+
+model Review {
+  id         String          @id @default(uuid())
+  bookingId  String          @unique
+  booking    Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   User            @relation("CustomerReviews", fields: [customerId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   ProviderProfile @relation("ProviderReviews", fields: [providerId], references: [id], onDelete: Cascade)
+  rating     Float
+  comment    String?
+  createdAt  DateTime        @default(now())
+
+  @@index([providerId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  content   String
+  type      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  ipAddress String?
+  userAgent String?
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+}
