@@ -35,9 +35,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // Prevent duplicate connections
     if (get().socket) return;
 
-    const socketUrl = window.location.origin === 'http://localhost:5173'
-      ? 'http://localhost:5000'
-      : window.location.origin;
+    const socketUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     const socket = io(socketUrl, {
       auth: { token: userId },

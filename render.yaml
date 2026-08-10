@@ -1,0 +1,50 @@
+# Render deployment configuration
+# Docs: https://render.com/docs/render-yaml
+
+services:
+  - type: web
+    name: localskill-backend
+    runtime: node
+    region: oregon
+    plan: free
+
+    # Root directory of the monorepo
+    rootDir: .
+
+    # Build: install all workspace deps → build shared → build backend
+    buildCommand: >
+      npm install &&
+      npm run build:shared &&
+      npm run build --workspace=backend
+
+    # Start the compiled backend
+    startCommand: node backend/dist/app.js
+
+    # Node version
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
+      - key: NODE_ENV
+        value: production
+
+      # --- Required secrets (set in Render Dashboard > Environment) ---
+      - key: DATABASE_URL
+        sync: false        # Set manually in dashboard
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_RESET_SECRET
+        sync: false
+      - key: CLIENT_URL
+        sync: false        # e.g. https://localskill.vercel.app
+
+      # --- Optional ---
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false

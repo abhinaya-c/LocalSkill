@@ -12,9 +12,16 @@ export class APIError extends Error {
   }
 }
 
+// In production: VITE_API_URL = https://your-backend.onrender.com
+// In development: falls back to '' so Vite proxy handles /api/*
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 export async function apiFetch<T = any>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  const baseUrl = '/api';
-  const url = path.startsWith('http') ? path : (path.startsWith('/api') ? path : `${baseUrl}${path}`);
+  // Ensure the path has a leading slash and don't double-prefix /api
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const url = path.startsWith('http')
+    ? path
+    : `${API_BASE}${normalizedPath.startsWith('/api') ? normalizedPath : `/api${normalizedPath}`}`;
 
   // 1. Get current access token
   const token = useAuthStore.getState().accessToken;
@@ -40,7 +47,7 @@ export async function apiFetch<T = any>(path: string, options: ApiRequestOptions
     try {
       console.log('Access token expired. Attempting token refresh...');
       // Try to refresh token
-      const refreshRes = await fetch(`${baseUrl}/auth/refresh`, {
+      const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

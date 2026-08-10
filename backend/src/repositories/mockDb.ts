@@ -740,8 +740,16 @@ function loadDb() {
   if (fs.existsSync(JSON_FILE_PATH)) {
     try {
       const data = reviveDates(JSON.parse(fs.readFileSync(JSON_FILE_PATH, 'utf-8')));
-      mockUsers.push(...(data.users || []));
-      mockProviderProfiles.push(...(data.providerProfiles || []));
+
+      // Merge users — always include new default users not yet in JSON
+      const existingUserIds = new Set((data.users || []).map((u: any) => u.id));
+      const newDefaultUsers = defaultUsers.filter(u => !existingUserIds.has(u.id));
+      mockUsers.push(...(data.users || []), ...newDefaultUsers);
+
+      // Merge provider profiles — always include new defaults
+      const existingProfileIds = new Set((data.providerProfiles || []).map((p: any) => p.id));
+      const newDefaultProfiles = defaultProviderProfiles.filter(p => !existingProfileIds.has(p.id));
+      mockProviderProfiles.push(...(data.providerProfiles || []), ...newDefaultProfiles);
 
       // Always merge default service listings (so newly seeded services appear)
       const existingListingIds = new Set((data.serviceListings || []).map((s: any) => s.id));
@@ -753,18 +761,38 @@ function loadDb() {
       const newDefaultSlots = defaultAppointmentSlots.filter(s => !existingSlotIds.has(s.id));
       mockAppointmentSlots.push(...(data.appointmentSlots || []), ...newDefaultSlots);
 
-      mockBookings.push(...(data.bookings || []));
-      mockReviews.push(...(data.reviews || []));
-      mockMessages.push(...(data.messages || []));
-      mockNotifications.push(...(data.notifications || []));
-      mockAuditLogs.push(...(data.auditLogs || []));
+      // Merge bookings — preserve persisted + seed defaults
+      const existingBookingIds = new Set((data.bookings || []).map((b: any) => b.id));
+      const newDefaultBookings = defaultBookings.filter(b => !existingBookingIds.has(b.id));
+      mockBookings.push(...(data.bookings || []), ...newDefaultBookings);
+
+      // Merge reviews — preserve persisted + seed defaults
+      const existingReviewIds = new Set((data.reviews || []).map((r: any) => r.id));
+      const newDefaultReviews = defaultReviews.filter(r => !existingReviewIds.has(r.id));
+      mockReviews.push(...(data.reviews || []), ...newDefaultReviews);
+
+      // Merge messages — preserve chat history + seed defaults
+      const existingMessageIds = new Set((data.messages || []).map((m: any) => m.id));
+      const newDefaultMessages = defaultMessages.filter(m => !existingMessageIds.has(m.id));
+      mockMessages.push(...(data.messages || []), ...newDefaultMessages);
+
+      // Merge notifications
+      const existingNotifyIds = new Set((data.notifications || []).map((n: any) => n.id));
+      const newDefaultNotifications = defaultNotifications.filter(n => !existingNotifyIds.has(n.id));
+      mockNotifications.push(...(data.notifications || []), ...newDefaultNotifications);
+
+      // Merge audit logs
+      const existingAuditIds = new Set((data.auditLogs || []).map((a: any) => a.id));
+      const newDefaultAuditLogs = defaultAuditLogs.filter(a => !existingAuditIds.has(a.id));
+      mockAuditLogs.push(...(data.auditLogs || []), ...newDefaultAuditLogs);
+
       return;
     } catch (e) {
       console.error('Error loading mockDb.json:', e);
     }
   }
 
-  // Load defaults
+  // Load defaults (first boot — no JSON file yet)
   mockUsers.push(...defaultUsers);
   mockProviderProfiles.push(...defaultProviderProfiles);
   mockServiceListings.push(...defaultServiceListings);

@@ -4,6 +4,10 @@ dist/
 build/
 .npm/
 
+# Runtime mock database (generated at server start)
+backend/src/repositories/mockDbData.json
+
+
 # Environment files
 .env
 .env.local
